@@ -13,6 +13,8 @@ public class Hooks {
     @Before(order = 0)
     public void startBrowser(Scenario scenario) {
         DriverFactory.initDriver();
+        System.out.printf("[%s] %s | %s%n", Thread.currentThread().getName(),
+                DriverFactory.browserName(), scenario.getName());
     }
 
     @After(order = 0)

@@ -11,13 +11,17 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 
 import java.time.Duration;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Creates and holds one WebDriver per thread, so scenarios can later run in parallel safely.
+ * Creates and holds one WebDriver per thread. Each parallel scenario runs on its own TestNG
+ * thread, so ThreadLocal gives every scenario its own private browser.
  */
 public final class DriverFactory {
 
     private static final ThreadLocal<WebDriver> DRIVER = new ThreadLocal<>();
+    private static final Set<String> DRIVERS_RESOLVED = ConcurrentHashMap.newKeySet();
 
     private DriverFactory() {
     }
@@ -30,8 +34,12 @@ public final class DriverFactory {
         return driver;
     }
 
+    public static String browserName() {
+        return ConfigReader.get("browser").toLowerCase();
+    }
+
     public static void initDriver() {
-        String browser = ConfigReader.get("browser").toLowerCase();
+        String browser = browserName();
         boolean headless = ConfigReader.getBoolean("headless");
 
         WebDriver driver = switch (browser) {
@@ -59,7 +67,7 @@ public final class DriverFactory {
     }
 
     private static WebDriver createChrome(boolean headless) {
-        WebDriverManager.chromedriver().setup();
+        resolveDriverOnce("chrome", WebDriverManager.chromedriver());
         ChromeOptions options = new ChromeOptions();
         if (headless) {
             options.addArguments("--headless=new");
@@ -70,7 +78,7 @@ public final class DriverFactory {
     }
 
     private static WebDriver createFirefox(boolean headless) {
-        WebDriverManager.firefoxdriver().setup();
+        resolveDriverOnce("firefox", WebDriverManager.firefoxdriver());
         FirefoxOptions options = new FirefoxOptions();
         if (headless) {
             options.addArguments("-headless");
@@ -80,12 +88,29 @@ public final class DriverFactory {
     }
 
     private static WebDriver createEdge(boolean headless) {
-        WebDriverManager.edgedriver().setup();
+        resolveDriverOnce("edge", WebDriverManager.edgedriver());
         EdgeOptions options = new EdgeOptions();
         if (headless) {
             options.addArguments("--headless=new");
         }
-        options.addArguments("--window-size=1920,1080");
+        options.addArguments("--window-size=1920,1080", "--no-sandbox", "--disable-dev-shm-usage",
+                "--disable-gpu", "--disable-notifications");
         return new EdgeDriver(options);
+    }
+
+    /**
+     * WebDriverManager downloads the driver binary on first use. With parallel threads, only the
+     * first thread should do that; the others wait here and then reuse the cached binary.
+     */
+    private static void resolveDriverOnce(String browser, WebDriverManager manager) {
+        if (DRIVERS_RESOLVED.contains(browser)) {
+            return;
+        }
+        synchronized (DriverFactory.class) {
+            if (!DRIVERS_RESOLVED.contains(browser)) {
+                manager.setup();
+                DRIVERS_RESOLVED.add(browser);
+            }
+        }
     }
 }

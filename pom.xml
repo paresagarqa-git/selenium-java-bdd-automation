@@ -22,6 +22,8 @@
 
         <!-- Override from the command line, e.g. mvn test -Dcucumber.filter.tags="@smoke" -->
         <cucumber.filter.tags>not @wip</cucumber.filter.tags>
+        <!-- Parallel scenarios: mvn test -Dthreads=1 runs them one by one -->
+        <threads>4</threads>
     </properties>
 
     <dependencies>
@@ -78,6 +80,12 @@
                     <suiteXmlFiles>
                         <suiteXmlFile>testng.xml</suiteXmlFile>
                     </suiteXmlFiles>
+                    <properties>
+                        <property>
+                            <name>dataproviderthreadcount</name>
+                            <value>${threads}</value>
+                        </property>
+                    </properties>
                     <systemPropertyVariables>
                         <cucumber.filter.tags>${cucumber.filter.tags}</cucumber.filter.tags>
                     </systemPropertyVariables>
