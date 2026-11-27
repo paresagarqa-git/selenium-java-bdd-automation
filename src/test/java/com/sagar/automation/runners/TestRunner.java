@@ -17,9 +17,12 @@ import org.testng.annotations.DataProvider;
 )
 public class TestRunner extends AbstractTestNGCucumberTests {
 
-    /** Set parallel = true to run scenarios in parallel (DriverFactory is ThreadLocal-safe). */
+    /**
+     * Runs scenarios in parallel. The number of threads comes from the "threads" Maven property
+     * (see pom.xml), e.g. mvn test -Dthreads=1 for a sequential run.
+     */
     @Override
-    @DataProvider(parallel = false)
+    @DataProvider(parallel = true)
     public Object[][] scenarios() {
         return super.scenarios();
     }

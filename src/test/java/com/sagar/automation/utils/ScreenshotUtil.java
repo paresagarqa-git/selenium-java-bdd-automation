@@ -26,8 +26,9 @@ public final class ScreenshotUtil {
     public static Path save(byte[] png, String scenarioName) throws IOException {
         Files.createDirectories(SCREENSHOT_DIR);
         String safeName = scenarioName.replaceAll("[^a-zA-Z0-9-_]", "_");
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        Path file = SCREENSHOT_DIR.resolve(safeName + "_" + timestamp + ".png");
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"));
+        // Thread id keeps names unique when the same scenario fails on two threads at once.
+        Path file = SCREENSHOT_DIR.resolve(safeName + "_" + timestamp + "_t" + Thread.currentThread().getId() + ".png");
         Files.write(file, png);
         return file;
     }
