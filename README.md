@@ -24,6 +24,7 @@ Tests run against [the-internet.herokuapp.com](https://the-internet.herokuapp.co
 src/test/
 ├── java/com/sagar/automation/
 │   ├── config/          ConfigReader: reads config.properties, -D overrides win
+│   ├── data/            TestDataReader + User: load test data from JSON
 │   ├── context/         TestContext: one per scenario, holds page objects
 │   ├── driver/          DriverFactory: ThreadLocal WebDriver (chrome/firefox/edge, headless)
 │   ├── hooks/           Hooks: start browser, screenshot on failure, quit
@@ -33,18 +34,41 @@ src/test/
 │   └── utils/           ScreenshotUtil
 └── resources/
     ├── config/config.properties
-    └── features/        *.feature files (Gherkin)
+    ├── features/        *.feature files (Gherkin)
+    └── testdata/        users.json: login accounts, kept out of the code and feature files
 ```
 
 ## Scenarios covered
 
 | Feature | Scenarios | Tags |
 |---------|-----------|------|
-| Login | Valid login, logout, invalid username, invalid password | `@login @smoke @regression` |
+| Login | Valid login, logout, and 8 rejected logins (wrong user/password, blank fields, case-sensitivity, SQL injection) | `@login @smoke @regression @negative` |
 | Checkboxes | Toggle both checkboxes | `@ui @smoke` |
 | Dropdown | Select Option 1 / Option 2 | `@ui @regression` |
 | Dynamic loading | Hidden element appears after loading (explicit wait) | `@ui @regression` |
 | JavaScript alerts | Accept alert, type into a prompt | `@ui @smoke @regression` |
+
+## Test data
+
+Login credentials live in `src/test/resources/testdata/users.json`, keyed by name:
+
+```json
+"invalid_password": { "username": "tomsmith", "password": "wrongpassword", "description": "Wrong password" }
+```
+
+Feature files refer to the key, and a Scenario Outline runs once per row:
+
+```gherkin
+Scenario Outline: Login is rejected for the "<user>" user
+  When I log in as the "<user>" user
+  Then I should see the flash message "<message>"
+
+  Examples:
+    | user             | message                   |
+    | invalid_password | Your password is invalid! |
+```
+
+To test another account, add it to `users.json` and add its key to the Examples table. No Java changes needed.
 
 ## Running the tests
 
@@ -59,7 +83,7 @@ mvn test -Dheadless=true
 
 # Only some scenarios, by tag
 mvn test -Dcucumber.filter.tags="@smoke"
-mvn test -Dcucumber.filter.tags="@login and not @regression"
+mvn test -Dcucumber.filter.tags="@negative"    # only the rejected-login cases
 
 # Cross-browser: chrome (default), firefox or edge
 mvn test -Dbrowser=firefox
