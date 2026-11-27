@@ -1,6 +1,8 @@
 package com.sagar.automation.context;
 
 import com.sagar.automation.driver.DriverFactory;
+import com.sagar.automation.pages.LoginPage;
+import com.sagar.automation.pages.SecureAreaPage;
 import org.openqa.selenium.WebDriver;
 
 /**
@@ -10,7 +12,24 @@ import org.openqa.selenium.WebDriver;
  */
 public class TestContext {
 
+    private LoginPage loginPage;
+    private SecureAreaPage secureAreaPage;
+
     public WebDriver getDriver() {
         return DriverFactory.getDriver();
+    }
+
+    public LoginPage loginPage() {
+        if (loginPage == null) {
+            loginPage = new LoginPage(getDriver());
+        }
+        return loginPage;
+    }
+
+    public SecureAreaPage secureAreaPage() {
+        if (secureAreaPage == null) {
+            secureAreaPage = new SecureAreaPage(getDriver());
+        }
+        return secureAreaPage;
     }
 }
