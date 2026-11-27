@@ -1,144 +1,231 @@
-# Selenium Java BDD Automation
+# Selenium Java BDD Automation Framework
 
 [![Selenium BDD Tests](https://github.com/paresagarqa-git/selenium-java-bdd-automation/actions/workflows/selenium-tests.yml/badge.svg)](https://github.com/paresagarqa-git/selenium-java-bdd-automation/actions/workflows/selenium-tests.yml)
+![Java](https://img.shields.io/badge/Java-17-007396?logo=openjdk&logoColor=white)
+![Selenium](https://img.shields.io/badge/Selenium-4-43B02A?logo=selenium&logoColor=white)
+![Cucumber](https://img.shields.io/badge/Cucumber-7-23D96C?logo=cucumber&logoColor=white)
+![TestNG](https://img.shields.io/badge/TestNG-7-FF7F00)
+![Maven](https://img.shields.io/badge/Maven-3-C71A36?logo=apachemaven&logoColor=white)
 
-A UI test automation framework built with **Selenium WebDriver**, **Java**, **Cucumber (BDD)** and **TestNG**, using the **Page Object Model**.
-Tests run against [the-internet.herokuapp.com](https://the-internet.herokuapp.com), a stable practice site for automation.
+A UI test automation framework for web applications, built with **Selenium WebDriver, Java, Cucumber (BDD) and TestNG** on the **Page Object Model**.
+It runs **cross-browser** (Chrome, Firefox, Edge), executes scenarios **in parallel**, reads test data from **external JSON files**, and produces
+**HTML reports with a screenshot and video of every failure**. Every pull request is tested in **GitHub Actions** on all three browsers.
+
+The application under test is [the-internet.herokuapp.com](https://the-internet.herokuapp.com), a public practice site with
+login, form controls, dynamic content and JavaScript alerts.
+
+---
+
+## Highlights
+
+| Capability | How it is done |
+|---|---|
+| **BDD** | Business-readable Gherkin feature files, tagged `@smoke`, `@regression`, `@negative` |
+| **Page Object Model** | One class per page; locators and actions are kept out of the step definitions |
+| **Data-driven testing** | Login accounts in `testdata/users.json`, used through Scenario Outlines |
+| **Cross-browser** | Chrome, Firefox and Edge, selected with `-Dbrowser=` |
+| **Parallel execution** | Scenarios run on a TestNG thread pool, one isolated browser per thread |
+| **Failure evidence** | Screenshot + MP4 video embedded in the Cucumber HTML report and saved as files |
+| **Explicit waits only** | No `Thread.sleep` and no implicit waits, so tests are fast and stable |
+| **Configurable** | `config.properties`, every value overridable from the command line |
+| **CI/CD** | GitHub Actions browser matrix on every push and pull request, reports uploaded as artifacts |
+
+---
 
 ## Tech stack
 
-| Tool | Purpose |
-|------|---------|
-| Java 17 + Maven | Language and build |
-| Selenium 4 | Browser automation |
-| Cucumber 7 | BDD: Gherkin feature files + step definitions |
-| TestNG | Test runner (via `cucumber-testng`) |
-| Cucumber PicoContainer | Dependency injection, shares state between step classes |
-| WebDriverManager | Downloads the right browser driver automatically |
-| Chrome, Firefox, Edge | Cross-browser runs, headless in CI |
-| GitHub Actions | CI: runs headless Chrome on every push and PR |
+| Tool | Version | Role |
+|---|---|---|
+| Java | 17 | Language |
+| Maven | 3.8+ | Build and dependency management |
+| Selenium WebDriver | 4.54 | Browser automation |
+| Cucumber | 7.34 | BDD: Gherkin features and step definitions |
+| TestNG | 7.12 | Test runner and parallel execution |
+| Cucumber PicoContainer | 7.34 | Dependency injection between step classes |
+| WebDriverManager | 6.4 | Resolves the matching browser driver automatically |
+| Jackson | 2.23 | Reads JSON test data |
+| JCodec | 0.2.5 | Encodes failure videos (MP4) |
+| GitHub Actions | | Continuous integration |
 
-## Project structure
+---
+
+## Framework design
+
+```mermaid
+flowchart LR
+    F[Feature files<br/>Gherkin] --> S[Step definitions]
+    S --> C[TestContext<br/>one per scenario]
+    C --> P[Page objects]
+    P --> B[BasePage<br/>explicit waits]
+    B --> D[DriverFactory<br/>ThreadLocal WebDriver]
+    S --> T[TestDataReader<br/>users.json]
+    H[Hooks] --> D
+    H --> R[Screenshot + video<br/>on failure]
+    R --> HTML[Cucumber HTML report]
+```
+
+- **Feature files** describe behaviour in plain English. They never contain locators or code.
+- **Step definitions** translate each step into page-object calls and assertions.
+- **TestContext** is created fresh for every scenario by PicoContainer and shared by all step classes, so
+  page objects and state never leak between scenarios, which is what makes parallel runs safe.
+- **Page objects** hold locators and page actions. `BasePage` wraps every interaction in an explicit wait.
+- **DriverFactory** creates one WebDriver per thread (`ThreadLocal`), for Chrome, Firefox or Edge, headless or headed.
+- **Hooks** open the browser before each scenario, record a frame after each step, and on failure attach a
+  screenshot and video to the report before closing the browser.
+
+### Project structure
 
 ```
-src/test/
-├── java/com/sagar/automation/
-│   ├── config/          ConfigReader: reads config.properties, -D overrides win
-│   ├── data/            TestDataReader + User: load test data from JSON
-│   ├── context/         TestContext: one per scenario, holds page objects
-│   ├── driver/          DriverFactory: ThreadLocal WebDriver (chrome/firefox/edge, headless)
-│   ├── hooks/           Hooks: start browser, screenshot on failure, quit
-│   ├── pages/           Page objects (BasePage + one class per page)
-│   ├── runners/         TestRunner: Cucumber + TestNG entry point
-│   ├── stepdefinitions/ Glue code that maps Gherkin steps to page actions
-│   └── utils/           ScreenshotUtil
-└── resources/
-    ├── config/config.properties
-    ├── features/        *.feature files (Gherkin)
-    └── testdata/        users.json: login accounts, kept out of the code and feature files
+selenium-java-bdd-automation
+├── .github/workflows/selenium-tests.yml   CI pipeline (browser matrix)
+├── pom.xml                                Dependencies, Surefire + parallel config
+├── testng.xml                             TestNG suite
+└── src/test
+    ├── java/com/sagar/automation
+    │   ├── config/          ConfigReader        reads config.properties, -D overrides
+    │   ├── context/         TestContext         per-scenario state and page objects
+    │   ├── data/            TestDataReader, User   loads JSON test data
+    │   ├── driver/          DriverFactory       ThreadLocal WebDriver, cross-browser
+    │   ├── hooks/           Hooks               setup, teardown, failure evidence
+    │   ├── pages/           BasePage + 6 page objects
+    │   ├── runners/         TestRunner          Cucumber + TestNG, parallel DataProvider
+    │   ├── stepdefinitions/ LoginSteps, UiInteractionSteps, ParameterTypes
+    │   └── utils/           ScreenshotUtil, VideoRecorder
+    └── resources
+        ├── config/config.properties           base URL, browser, timeouts, video mode
+        ├── features/                          Gherkin feature files
+        └── testdata/users.json                login test data
 ```
 
-## Scenarios covered
+---
 
-| Feature | Scenarios | Tags |
-|---------|-----------|------|
-| Login | Valid login, logout, and 8 rejected logins (wrong user/password, blank fields, case-sensitivity, SQL injection) | `@login @smoke @regression @negative` |
-| Checkboxes | Toggle both checkboxes | `@ui @smoke` |
-| Dropdown | Select Option 1 / Option 2 | `@ui @regression` |
-| Dynamic loading | Hidden element appears after loading (explicit wait) | `@ui @regression` |
-| JavaScript alerts | Accept alert, type into a prompt | `@ui @smoke @regression` |
+## Test coverage
 
-## Test data
+**16 scenarios** across 5 features:
 
-Login credentials live in `src/test/resources/testdata/users.json`, keyed by name:
+| Feature | Scenarios | What it proves |
+|---|---|---|
+| **Login** | 10 | Valid login, logout, and 8 rejected logins: unknown user, wrong password, blank username, blank password, both blank, case-sensitive username, case-sensitive password, SQL-injection input |
+| **Checkboxes** | 1 | Reading and changing checkbox state |
+| **Dropdown** | 2 | Selecting options with Selenium's `Select` |
+| **Dynamic loading** | 1 | Waiting for content that appears after a delay |
+| **JavaScript alerts** | 2 | Accepting an alert and typing into a prompt |
+
+A separate `@demo` scenario fails on purpose to show the failure screenshot and video. It is excluded from normal runs.
+
+---
+
+## Data-driven testing
+
+Test data is kept apart from code and feature files in `src/test/resources/testdata/users.json`:
 
 ```json
-"invalid_password": { "username": "tomsmith", "password": "wrongpassword", "description": "Wrong password" }
+"invalid_password":   { "username": "tomsmith", "password": "wrongpassword",        "description": "Wrong password" },
+"uppercase_username": { "username": "TOMSMITH", "password": "SuperSecretPassword!", "description": "Username is case-sensitive" }
 ```
 
-Feature files refer to the key, and a Scenario Outline runs once per row:
+Feature files refer to users by key, and a Scenario Outline runs once per row:
 
 ```gherkin
+@regression @negative
 Scenario Outline: Login is rejected for the "<user>" user
   When I log in as the "<user>" user
   Then I should see the flash message "<message>"
+  And I should be on the login page
 
   Examples:
-    | user             | message                   |
-    | invalid_password | Your password is invalid! |
+    | user               | message                   |
+    | invalid_password   | Your password is invalid! |
+    | uppercase_username | Your username is invalid! |
 ```
 
-To test another account, add it to `users.json` and add its key to the Examples table. No Java changes needed.
+Adding a test case means adding a row to the JSON file and the Examples table. No Java changes are needed.
 
-## Running the tests
+---
 
-Prerequisites: JDK 17+, Maven 3.8+, Google Chrome.
+## Getting started
+
+**Prerequisites:** JDK 17+, Maven 3.8+, and Chrome (Firefox and Edge optional).
 
 ```bash
-# Everything, with a visible browser
+git clone https://github.com/paresagarqa-git/selenium-java-bdd-automation.git
+cd selenium-java-bdd-automation
 mvn test
-
-# Headless (what CI uses)
-mvn test -Dheadless=true
-
-# Only some scenarios, by tag
-mvn test -Dcucumber.filter.tags="@smoke"
-mvn test -Dcucumber.filter.tags="@negative"    # only the rejected-login cases
-
-# Cross-browser: chrome (default), firefox or edge
-mvn test -Dbrowser=firefox
-mvn test -Dbrowser=edge -Dheadless=true
-
-# Parallel: scenarios run on 4 threads by default, each with its own browser
-mvn test -Dthreads=8
-mvn test -Dthreads=1     # one at a time, easier to debug
-
-# Check every step has a definition, without opening a browser
-mvn test -Dcucumber.execution.dry-run=true
 ```
 
-Any key in `config.properties` can be overridden with `-Dkey=value`.
+### Common commands
 
-## Reports, screenshots and video
-
-After a run, open:
-
-- `target/cucumber-reports/cucumber.html`: Cucumber HTML report. Failed scenarios include an embedded screenshot and video.
-- `target/screenshots/`: PNG screenshot for every failed scenario
-- `target/videos/`: MP4 video for every failed scenario
-- `target/cucumber-reports/rerun.txt`: list of failed scenarios
-- `target/surefire-reports/`: TestNG results
-
-### How the video works
-
-Selenium has no built-in video recording (Playwright does). An `@AfterStep` hook takes a screenshot after
-every step, and `VideoRecorder` turns them into an MP4 with [JCodec](https://github.com/jcodec/jcodec),
-one second per step. It works the same for Chrome, Firefox and Edge, headless and in parallel.
-
-| `video.mode` | Result |
+| Goal | Command |
 |---|---|
-| `on-failure` (default) | Video kept only for failed scenarios |
-| `always` | Video for every scenario |
-| `off` | No screenshots between steps (fastest) |
+| Run everything (visible browser) | `mvn test` |
+| Headless, as in CI | `mvn test -Dheadless=true` |
+| Smoke tests only | `mvn test -Dcucumber.filter.tags="@smoke"` |
+| Negative login cases only | `mvn test -Dcucumber.filter.tags="@negative"` |
+| Firefox / Edge | `mvn test -Dbrowser=firefox` / `mvn test -Dbrowser=edge` |
+| More parallel threads | `mvn test -Dthreads=8` |
+| One scenario at a time (debugging) | `mvn test -Dthreads=1` |
+| Video for every scenario | `mvn test -Dvideo.mode=always` |
+| See a failure report with screenshot + video | `mvn test -Dcucumber.filter.tags="@demo"` |
+| Check all steps are implemented, no browser | `mvn test -Dcucumber.execution.dry-run=true` |
 
-```bash
-mvn test -Dvideo.mode=always
-mvn test -Dcucumber.filter.tags="@demo"   # intentional failure: see the screenshot + video
-```
+### Configuration
 
-## Parallel execution
+`src/test/resources/config/config.properties`. Any key can be overridden with `-Dkey=value`.
 
-`TestRunner` overrides Cucumber's `scenarios()` DataProvider with `parallel = true`, and Surefire passes
-`dataproviderthreadcount=${threads}` to TestNG. Every scenario gets its own browser because
-`DriverFactory` keeps the WebDriver in a `ThreadLocal`, and PicoContainer creates a fresh `TestContext`
-(and fresh page objects) per scenario. The console prints `[thread] browser | scenario` so you can see it.
+| Key | Default | Meaning |
+|---|---|---|
+| `base.url` | `https://the-internet.herokuapp.com` | Application under test |
+| `browser` | `chrome` | `chrome`, `firefox` or `edge` |
+| `headless` | `false` | Run without a visible window |
+| `explicit.wait.seconds` | `10` | Max wait for an element |
+| `page.load.timeout.seconds` | `30` | Max wait for a page load |
+| `video.mode` | `on-failure` | `on-failure`, `always` or `off` |
 
-## CI
+Parallel thread count is the Maven property `threads` (default `4`).
 
-`.github/workflows/selenium-tests.yml` runs on every push to `main`, every pull request, and on demand
-(**Actions → Selenium BDD Tests → Run workflow**, with an optional tag expression and thread count).
+---
 
-A **browser matrix** runs Chrome, Firefox and Edge as three parallel jobs, and inside each job the
-scenarios run in parallel threads. Each browser uploads its own `cucumber-report-<browser>` and
-`surefire-reports-<browser>`; `failure-screenshots-<browser>` and `failure-videos-<browser>` are uploaded when a test fails.
-To see them, run the workflow by hand with tags `@demo`.
+## Reports and failure evidence
+
+| Output | Location |
+|---|---|
+| Cucumber HTML report (with embedded screenshot and video for failures) | `target/cucumber-reports/cucumber.html` |
+| Cucumber JSON (for other report tools) | `target/cucumber-reports/cucumber.json` |
+| Failed scenarios list (for re-runs) | `target/cucumber-reports/rerun.txt` |
+| Failure screenshots (PNG) | `target/screenshots/` |
+| Failure videos (MP4) | `target/videos/` |
+| TestNG results | `target/surefire-reports/` |
+
+**About the video:** Selenium has no built-in screen recorder. The framework takes a screenshot after every
+step and encodes them into an MP4 (one second per step) with JCodec. This works the same in every browser,
+headless or not, and in parallel runs. Screenshots are skipped while a JavaScript alert is open, because
+capturing one would dismiss the alert.
+
+---
+
+## Parallel and cross-browser execution
+
+- `TestRunner` overrides Cucumber's `scenarios()` DataProvider with `parallel = true`, and Surefire passes
+  the thread count to TestNG (`dataproviderthreadcount`).
+- Each thread gets its own browser through `ThreadLocal<WebDriver>`, and its own `TestContext` through PicoContainer.
+- Driver binaries are resolved once under a lock, so threads don't race to download them.
+- The console prints `[thread] browser | scenario` for each scenario, so parallel execution is visible in the logs.
+
+---
+
+## Continuous integration
+
+[`.github/workflows/selenium-tests.yml`](.github/workflows/selenium-tests.yml) runs:
+
+- on every push to `main` and every pull request
+- on demand from **Actions → Selenium BDD Tests → Run workflow**, with optional tag expression and thread count
+
+Chrome, Firefox and Edge run as **three parallel jobs** (headless), and scenarios run in parallel inside each job.
+Every run uploads `cucumber-report-<browser>` and `surefire-reports-<browser>`; failed runs also upload
+`failure-screenshots-<browser>` and `failure-videos-<browser>`.
+
+---
+
+## Author
+
+**Sagar Pare** · QA Automation · [GitHub](https://github.com/paresagarqa-git)
