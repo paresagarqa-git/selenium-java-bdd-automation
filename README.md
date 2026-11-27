@@ -15,6 +15,7 @@ Tests run against [the-internet.herokuapp.com](https://the-internet.herokuapp.co
 | TestNG | Test runner (via `cucumber-testng`) |
 | Cucumber PicoContainer | Dependency injection, shares state between step classes |
 | WebDriverManager | Downloads the right browser driver automatically |
+| Chrome, Firefox, Edge | Cross-browser runs, headless in CI |
 | GitHub Actions | CI: runs headless Chrome on every push and PR |
 
 ## Project structure
@@ -60,8 +61,13 @@ mvn test -Dheadless=true
 mvn test -Dcucumber.filter.tags="@smoke"
 mvn test -Dcucumber.filter.tags="@login and not @regression"
 
-# Another browser
+# Cross-browser: chrome (default), firefox or edge
 mvn test -Dbrowser=firefox
+mvn test -Dbrowser=edge -Dheadless=true
+
+# Parallel: scenarios run on 4 threads by default, each with its own browser
+mvn test -Dthreads=8
+mvn test -Dthreads=1     # one at a time, easier to debug
 
 # Check every step has a definition, without opening a browser
 mvn test -Dcucumber.execution.dry-run=true
@@ -78,8 +84,18 @@ After a run, open:
 - `target/cucumber-reports/rerun.txt`: list of failed scenarios
 - `target/surefire-reports/`: TestNG results
 
+## Parallel execution
+
+`TestRunner` overrides Cucumber's `scenarios()` DataProvider with `parallel = true`, and Surefire passes
+`dataproviderthreadcount=${threads}` to TestNG. Every scenario gets its own browser because
+`DriverFactory` keeps the WebDriver in a `ThreadLocal`, and PicoContainer creates a fresh `TestContext`
+(and fresh page objects) per scenario. The console prints `[thread] browser | scenario` so you can see it.
+
 ## CI
 
 `.github/workflows/selenium-tests.yml` runs on every push to `main`, every pull request, and on demand
-(**Actions → Selenium BDD Tests → Run workflow**, with an optional tag expression).
-The Cucumber report is uploaded as an artifact on every run; screenshots are uploaded when a test fails.
+(**Actions → Selenium BDD Tests → Run workflow**, with an optional tag expression and thread count).
+
+A **browser matrix** runs Chrome, Firefox and Edge as three parallel jobs, and inside each job the
+scenarios run in parallel threads. Each browser uploads its own `cucumber-report-<browser>` and
+`surefire-reports-<browser>`; `failure-screenshots-<browser>` is uploaded when a test fails.

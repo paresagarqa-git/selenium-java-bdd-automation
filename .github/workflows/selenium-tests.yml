@@ -10,11 +10,21 @@ on:
         description: 'Cucumber tag expression, e.g. @smoke or "@login and not @wip"'
         required: false
         default: 'not @wip'
+      threads:
+        description: 'Parallel threads per browser'
+        required: false
+        default: '4'
 
 jobs:
   test:
+    name: tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      # Let every browser finish even if one fails, so you see all results.
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox, edge]
 
     steps:
       - name: Check out code
@@ -27,20 +37,27 @@ jobs:
           java-version: '17'
           cache: maven
 
-      # ubuntu-latest already ships Google Chrome; WebDriverManager downloads the matching ChromeDriver.
-      - name: Show Chrome version
-        run: google-chrome --version
+      # ubuntu-latest already ships Chrome, Firefox and Edge.
+      # WebDriverManager downloads the matching driver (chromedriver / geckodriver / msedgedriver).
+      - name: Show browser versions
+        run: |
+          google-chrome --version
+          firefox --version
+          microsoft-edge --version
 
-      - name: Run tests (headless Chrome)
+      - name: Run tests (headless ${{ matrix.browser }})
         env:
           TAGS: ${{ github.event.inputs.tags || 'not @wip' }}
-        run: mvn -B test -Dheadless=true -Dcucumber.filter.tags="$TAGS"
+          THREADS: ${{ github.event.inputs.threads || '4' }}
+          # Lets WebDriverManager call the GitHub API (geckodriver releases) without hitting rate limits.
+          WDM_GITHUBTOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mvn -B test -Dbrowser=${{ matrix.browser }} -Dheadless=true -Dthreads="$THREADS" -Dcucumber.filter.tags="$TAGS"
 
       - name: Upload Cucumber HTML report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cucumber-report
+          name: cucumber-report-${{ matrix.browser }}
           path: target/cucumber-reports/
           retention-days: 14
 
@@ -48,7 +65,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: failure-screenshots
+          name: failure-screenshots-${{ matrix.browser }}
           path: target/screenshots/
           if-no-files-found: ignore
           retention-days: 14
@@ -57,6 +74,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: surefire-reports
+          name: surefire-reports-${{ matrix.browser }}
           path: target/surefire-reports/
           retention-days: 14
