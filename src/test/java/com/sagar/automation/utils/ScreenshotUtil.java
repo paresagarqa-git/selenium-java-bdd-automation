@@ -25,11 +25,18 @@ public final class ScreenshotUtil {
     /** Saves the screenshot as a PNG so CI can upload it as an artifact. Returns the file path. */
     public static Path save(byte[] png, String scenarioName) throws IOException {
         Files.createDirectories(SCREENSHOT_DIR);
-        String safeName = scenarioName.replaceAll("[^a-zA-Z0-9-_]", "_");
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"));
-        // Thread id keeps names unique when the same scenario fails on two threads at once.
-        Path file = SCREENSHOT_DIR.resolve(safeName + "_" + timestamp + "_t" + Thread.currentThread().getId() + ".png");
+        Path file = SCREENSHOT_DIR.resolve(uniqueFileName(scenarioName, "png"));
         Files.write(file, png);
         return file;
+    }
+
+    /**
+     * Scenario name + timestamp + thread id. The thread id keeps names unique when the same
+     * scenario runs on two threads at once (e.g. two Scenario Outline examples).
+     */
+    public static String uniqueFileName(String scenarioName, String extension) {
+        String safeName = scenarioName.replaceAll("[^a-zA-Z0-9-_]", "_");
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"));
+        return safeName + "_" + timestamp + "_t" + Thread.currentThread().getId() + "." + extension;
     }
 }
