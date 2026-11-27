@@ -1,6 +1,8 @@
 package com.sagar.automation.stepdefinitions;
 
 import com.sagar.automation.context.TestContext;
+import com.sagar.automation.data.TestDataReader;
+import com.sagar.automation.data.User;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -24,6 +26,13 @@ public class LoginSteps {
     @When("I log in with username {string} and password {string}")
     public void iLogInWith(String username, String password) {
         context.loginPage().login(username, password);
+    }
+
+    /** Credentials come from testdata/users.json, looked up by key. */
+    @When("I log in as the {string} user")
+    public void iLogInAsTheUser(String userKey) {
+        User user = TestDataReader.user(userKey);
+        context.loginPage().login(user.username(), user.password());
     }
 
     @When("I log out")

@@ -1,0 +1,14 @@
+{
+  "_comment": "Login test data. Feature files refer to users by key (e.g. \"valid\"), so credentials live in one place. Add a user here, then add its key to an Examples table.",
+  "users": {
+    "valid":                { "username": "tomsmith",            "password": "SuperSecretPassword!", "description": "Registered user" },
+    "invalid_username":     { "username": "invaliduser",         "password": "SuperSecretPassword!", "description": "Unknown username" },
+    "invalid_password":     { "username": "tomsmith",            "password": "wrongpassword",        "description": "Wrong password" },
+    "empty_username":       { "username": "",                    "password": "SuperSecretPassword!", "description": "Username left blank" },
+    "empty_password":       { "username": "tomsmith",            "password": "",                     "description": "Password left blank" },
+    "empty_both":           { "username": "",                    "password": "",                     "description": "Both fields blank" },
+    "uppercase_username":   { "username": "TOMSMITH",            "password": "SuperSecretPassword!", "description": "Username is case-sensitive" },
+    "uppercase_password":   { "username": "tomsmith",            "password": "SUPERSECRETPASSWORD!", "description": "Password is case-sensitive" },
+    "sql_injection":        { "username": "' OR '1'='1",         "password": "' OR '1'='1",          "description": "SQL injection attempt is rejected" }
+  }
+}
