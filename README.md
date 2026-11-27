@@ -75,14 +75,32 @@ mvn test -Dcucumber.execution.dry-run=true
 
 Any key in `config.properties` can be overridden with `-Dkey=value`.
 
-## Reports
+## Reports, screenshots and video
 
 After a run, open:
 
-- `target/cucumber-reports/cucumber.html`: Cucumber HTML report (failed scenarios include an embedded screenshot)
+- `target/cucumber-reports/cucumber.html`: Cucumber HTML report. Failed scenarios include an embedded screenshot and video.
 - `target/screenshots/`: PNG screenshot for every failed scenario
+- `target/videos/`: MP4 video for every failed scenario
 - `target/cucumber-reports/rerun.txt`: list of failed scenarios
 - `target/surefire-reports/`: TestNG results
+
+### How the video works
+
+Selenium has no built-in video recording (Playwright does). An `@AfterStep` hook takes a screenshot after
+every step, and `VideoRecorder` turns them into an MP4 with [JCodec](https://github.com/jcodec/jcodec),
+one second per step. It works the same for Chrome, Firefox and Edge, headless and in parallel.
+
+| `video.mode` | Result |
+|---|---|
+| `on-failure` (default) | Video kept only for failed scenarios |
+| `always` | Video for every scenario |
+| `off` | No screenshots between steps (fastest) |
+
+```bash
+mvn test -Dvideo.mode=always
+mvn test -Dcucumber.filter.tags="@demo"   # intentional failure: see the screenshot + video
+```
 
 ## Parallel execution
 
@@ -98,4 +116,5 @@ After a run, open:
 
 A **browser matrix** runs Chrome, Firefox and Edge as three parallel jobs, and inside each job the
 scenarios run in parallel threads. Each browser uploads its own `cucumber-report-<browser>` and
-`surefire-reports-<browser>`; `failure-screenshots-<browser>` is uploaded when a test fails.
+`surefire-reports-<browser>`; `failure-screenshots-<browser>` and `failure-videos-<browser>` are uploaded when a test fails.
+To see them, run the workflow by hand with tags `@demo`.

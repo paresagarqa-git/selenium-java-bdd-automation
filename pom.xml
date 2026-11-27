@@ -22,7 +22,7 @@
         <surefire.version>3.5.4</surefire.version>
 
         <!-- Override from the command line, e.g. mvn test -Dcucumber.filter.tags="@smoke" -->
-        <cucumber.filter.tags>not @wip</cucumber.filter.tags>
+        <cucumber.filter.tags>not @wip and not @demo</cucumber.filter.tags>
         <!-- Parallel scenarios: mvn test -Dthreads=1 runs them one by one -->
         <threads>4</threads>
     </properties>

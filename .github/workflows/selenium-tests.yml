@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tags:
-        description: 'Cucumber tag expression, e.g. @smoke or "@login and not @wip"'
+        description: 'Cucumber tag expression, e.g. @smoke, or @demo to see a failure with screenshot and video'
         required: false
-        default: 'not @wip'
+        default: 'not @wip and not @demo'
       threads:
         description: 'Parallel threads per browser'
         required: false
@@ -47,7 +47,7 @@ jobs:
 
       - name: Run tests (headless ${{ matrix.browser }})
         env:
-          TAGS: ${{ github.event.inputs.tags || 'not @wip' }}
+          TAGS: ${{ github.event.inputs.tags || 'not @wip and not @demo' }}
           THREADS: ${{ github.event.inputs.threads || '4' }}
           # Lets WebDriverManager call the GitHub API (geckodriver releases) without hitting rate limits.
           WDM_GITHUBTOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -67,6 +67,15 @@ jobs:
         with:
           name: failure-screenshots-${{ matrix.browser }}
           path: target/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload failure videos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-videos-${{ matrix.browser }}
+          path: target/videos/
           if-no-files-found: ignore
           retention-days: 14
 
